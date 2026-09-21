@@ -109,7 +109,7 @@ def mountpunkt_freiraeumen():
     """Leere Ordner aus dem Mountpunkt entfernen, damit gocryptfs mounten kann.
 
     gocryptfs verlangt ein leeres Verzeichnis. Docker legt fehlende Bind-Quellen
-    beim Containerstart aber selbsttaetig als leeren Ordner an — und vault-samba
+    beim Containerstart aber selbsttaetig als leeren Ordner an, und vault-samba
     bindet mount/main. Nach jedem Neustart des Hosts ist der Mountpunkt damit
     blockiert ("Invalid mountpoint: directory not empty").
 
@@ -134,7 +134,7 @@ def mountpunkt_freiraeumen():
 def samba_loslassen():
     """vault-samba stoppen, damit der Mount freigegeben wird.
 
-    Der Container bindet mount/main und haelt den FUSE-Mount damit offen —
+    Der Container bindet mount/main und haelt den FUSE-Mount damit offen,
     fusermount scheitert dann mit "Unmount fehlgeschlagen". Das ist die
     Kehrseite von samba_nachziehen(): erst dadurch sieht die Freigabe den
     Vault ueberhaupt. Nach dem Aushaengen wird er wieder gestartet, denn er
@@ -169,7 +169,7 @@ def unmount_vault():
         if not is_mounted():
             break
         # ★ Zwischen den Versuchen warten. Ein gerade gestoppter Container gibt
-        # den Mount nicht im selben Augenblick frei — ohne Pause liefen alle
+        # den Mount nicht im selben Augenblick frei, ohne Pause liefen alle
         # Versuche innerhalb weniger Millisekunden ab und scheiterten samt und
         # sonders, obwohl ein Aufruf eine Sekunde spaeter durchgeht.
         if versuch:
@@ -184,7 +184,7 @@ def unmount_vault():
         raise RuntimeError(
             "Unmount fehlgeschlagen; der Media-Vault ist weiterhin gemountet."
             + (f" Diese laufenden Container binden ihn noch: {haltend}." if haltend
-               else " Kein Container haelt ihn — vermutlich eine offene Datei.")
+               else " Kein Container haelt ihn, vermutlich eine offene Datei.")
         )
     return "\n".join(messages) or "Media-Vault gesperrt."
 
@@ -429,7 +429,7 @@ class Handler(BaseHTTPRequestHandler):
                 try:
                     message = unmount_vault()
                 finally:
-                    # Samba immer wieder hoch — auch wenn das Aushaengen
+                    # Samba immer wieder hoch, auch wenn das Aushaengen
                     # scheitert. Er exportiert den Obsidian-Vault und die
                     # Musik, die mit dem Media-Vault nichts zu tun haben;
                     # ein misslungener Sperrversuch darf die nicht mitreissen.

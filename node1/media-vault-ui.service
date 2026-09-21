@@ -1,0 +1,40 @@
+[Unit]
+# Laufzeit-Fassung fuer node1 (seit 2026-08-22), wo der Media-Vault liegt.
+# Bewusst eine BENUTZER-Unit (~/.config/systemd/user/): der gocryptfs-Mount
+# muss dem Besitzer des Vaults gehoeren. Als root gemountet stimmen die
+# Rechte im entschluesselten Baum nicht mehr.
+# Braucht `loginctl enable-linger sami`, sonst laeuft sie nur bei aktiver
+# Anmeldung — und genau nach einem Neustart waere sie dann weg.
+Description=Media Vault Browser Unlock UI
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/user/docker/media-vault-ui
+# 0.0.0.0 statt einer Host-IP (Policy). Erreichbar bleibt der Port nur fuer
+# host: ufw-Regel, siehe node1/README.md. ufw greift hier auch wirklich,
+# weil das ein Host-Prozess ist und kein Container — DOCKER-USER waere wirkungslos.
+Environment=MEDIA_VAULT_UI_HOST=0.0.0.0
+Environment=MEDIA_VAULT_UI_PORT=8127
+Environment=MEDIA_VAULT_CIPHER_DIR=/home/user/media-vault/cipher
+Environment=MEDIA_VAULT_MOUNT_DIR=/home/user/media-vault/mount
+Environment=JELLYFIN_COMPOSE_DIR=/home/user/docker/jellyfin
+Environment=VAULT_SAMBA_COMPOSE=/home/user/ai-services/vault-share/docker-compose.yml
+ExecStart=/usr/bin/python3 /home/user/docker/media-vault-ui/app.py
+Restart=unless-stopped
+RestartSec=3
+# ★ KEIN NoNewPrivileges=true. fusermount3 ist setuid root (-rwsr-xr-x) —
+# genau das braucht ein FUSE-Mount als normaler Benutzer. Mit
+# NoNewPrivileges scheitert gocryptfs reproduzierbar an
+# "fusermount3: mount failed: Operation not permitted", und die Meldung
+# deutet auf alles Moegliche ausser auf die Unit. Auf host stand die
+# Einstellung drin, weshalb der Dienst dort seit Juni nie mounten konnte.
+#
+# Die Alternative waere, als root zu mounten — schlechter: dann gehoert der
+# entschluesselte Baum root und die Dateirechte stimmen nicht mehr.
+# Abgesichert ist der Dienst stattdessen ueber seine Erreichbarkeit:
+# ufw laesst nur host an den Port, davor sitzt Authelia.
+
+[Install]
+WantedBy=default.target

@@ -51,4 +51,5 @@ media containers and the reverse-proxy configuration. None of that is here.
 Internal addresses and paths became placeholders, and the push only goes through
 when two secret scanners are both quiet.
 
-One commit, no real history. The thing itself guards my own library.
+No real history here either: the public one starts at the first release and
+grows from there. The thing itself guards my own library.

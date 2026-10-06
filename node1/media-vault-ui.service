@@ -22,8 +22,35 @@ Environment=MEDIA_VAULT_MOUNT_DIR=/home/user/media-vault/mount
 Environment=JELLYFIN_COMPOSE_DIR=/home/user/docker/jellyfin
 Environment=VAULT_SAMBA_COMPOSE=/home/user/ai-services/vault-share/docker-compose.yml
 ExecStart=/usr/bin/python3 /home/user/docker/media-vault-ui/app.py
-Restart=unless-stopped
+# ★ always und NICHT unless-stopped. Letzteres ist ein docker-compose-Wert und
+# in einer systemd-Unit ungueltig: systemd verwirft ihn und faellt auf
+# Restart=no zurueck, der Dienst hatte also bis zum 2026-10-03 gar keinen
+# Wiederanlauf, obwohl die Datei einen zu versprechen schien. Gemeldet wird das
+# nur beim Laden der Unit ("Failed to parse Restart=unless-stopped, ignoring"),
+# nicht im Journal des Dienstes, und deshalb sieht es niemand.
+# Nachsehen, was systemd wirklich daraus gemacht hat:
+#   systemctl --user show media-vault-ui -p Restart
+Restart=always
 RestartSec=3
+# ★★ KillMode=process. unlock_vault() startet gocryptfs per subprocess.run,
+# das Kind erbt also die Cgroup dieses Dienstes. Mit der Vorgabe
+# control-group nimmt jedes `systemctl stop` und jedes `restart` den Mount
+# mit und sperrt damit den Vault, also gerade auch ein Nachziehen DIESER
+# Datei. Am 2026-10-03 mit Gegenprobe an einem eigenen Testvault gemessen:
+#   KillMode=process       -> Mount ueberlebt systemctl stop
+#   KillMode=control-group -> Mount weg
+# Ein Mount ist kein Teil eines Webservers; wer ihn schliessen will, nimmt
+# die Oberflaeche selbst oder ~/media-vault/unmount.sh.
+#
+# ⚠️ Das deckt das Stoppen und Neustarten, NICHT den harten Absturz. Ein
+# kill -9 auf den Hauptprozess hat am 2026-10-03 den Mount mitgenommen,
+# und zwar heimtueckisch: `ls /media` zeigte im Container die Ordner noch
+# aus dem Dentry-Cache, erst ein Lesen gab "Transport endpoint is not
+# connected". Jellyfin sah also gesund aus und war blind. Ob KillMode in
+# diesem Pfad hilft, ist offen und am echten Vault nicht geprueft, weil
+# jeder Versuch dessen Kennwort kostet. Der Waechter jellyfin-wache deckt
+# genau diese Luecke ab: er meldet, wenn Mount und Dienst auseinanderlaufen.
+KillMode=process
 # ★ KEIN NoNewPrivileges=true. fusermount3 ist setuid root (-rwsr-xr-x),
 # genau das braucht ein FUSE-Mount als normaler Benutzer. Mit
 # NoNewPrivileges scheitert gocryptfs reproduzierbar an
